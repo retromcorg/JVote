@@ -21,8 +21,8 @@ public class VoteJoinListener implements Listener {
             player.sendMessage(JVoteUtils.printMessage("§aA vote for "
                     + JVoteUtils.formatColor(voteCommand.getCurrentVoteType().color())
                     + JVoteUtils.formatColor(voteCommand.getCurrentVoteType().toString().toLowerCase())
-                    + "§a is currently active!"));
-            player.sendMessage(JVoteUtils.printMessage("§aType §b/vote yes§a or §b/vote no§a to participate."));
+                    + " §7is currently active!"));
+            player.sendMessage(JVoteUtils.printMessage("Type §a/vote yes§7 or §a/vote no§7 to participate."));
         }
     }
 }
