@@ -22,7 +22,7 @@ public class JVote extends JavaPlugin implements Listener {
         log = this.getServer().getLogger();
         JVoteConfig.getInstance(plugin);
         voteCommand = new JVoteCommand(plugin);
-        Bukkit.getPluginManager().registerEvents(new VoteJoinListener(voteCommand), this);
+        Bukkit.getPluginManager().registerEvents(new VoteJoinListener(voteCommand, this), this);
         Bukkit.getPluginCommand("vote").setExecutor(voteCommand);
         pdf = this.getDescription();
         pluginName = pdf.getName();
