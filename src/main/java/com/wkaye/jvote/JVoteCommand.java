@@ -255,4 +255,12 @@ public class JVoteCommand implements CommandExecutor {
             plugin.logger(Level.INFO, "Vote already in progress");
         }
     }
+
+    public boolean isVoteActive() {
+        return voteStarted.get();
+    }
+
+    public JVoteEnums getCurrentVoteType() {
+        return currentVoteType;
+    }
 }

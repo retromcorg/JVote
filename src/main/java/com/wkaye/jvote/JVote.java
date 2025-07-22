@@ -14,13 +14,16 @@ public class JVote extends JavaPlugin implements Listener {
     private String pluginName;
     private PluginDescriptionFile pdf;
     private int debugLevel;
+    private JVoteCommand voteCommand;
 
     @Override
     public void onEnable() {
         plugin = this;
         log = this.getServer().getLogger();
         JVoteConfig.getInstance(plugin);
-        Bukkit.getPluginCommand("vote").setExecutor(new JVoteCommand(plugin));
+        voteCommand = new JVoteCommand(plugin);
+        Bukkit.getPluginManager().registerEvents(new VoteJoinListener(voteCommand, this), this);
+        Bukkit.getPluginCommand("vote").setExecutor(voteCommand);
         pdf = this.getDescription();
         pluginName = pdf.getName();
         log.info("[" + pluginName + "] Is Loading, Version: " + pdf.getVersion());
