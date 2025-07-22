@@ -50,7 +50,7 @@ jobs:
           mvn clean install
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: JTest-${{ steps.version.outputs.version }}
           path: target/*.jar
