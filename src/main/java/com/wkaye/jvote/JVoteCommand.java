@@ -65,21 +65,46 @@ public class JVoteCommand implements CommandExecutor {
             return true;
         }
         Player player = (Player) sender;
+
         if (voteStarted.get()) {
-            // vote started, check that the user actually supplied a yes or no vote
-            if (!("yes".contains(args[0].toLowerCase()) || "no".contains(args[0].toLowerCase()) || "ok".contains(args[0].toLowerCase()))) {
+            // vote started, check if they're voting yes/no or voting for the same type as current vote
+            String arg = args[0].toLowerCase();
+
+            // Check if they're trying to vote for the same type as the current vote
+            boolean isVotingForCurrentType = false;
+            try {
+                JVoteEnums inputVoteType = JVoteEnums.valueOf(args[0].toUpperCase());
+                // Check if the input vote type matches the current vote type
+                if (inputVoteType == currentVoteType ||
+                        (inputVoteType == JVoteEnums.CLEAR && currentVoteType == JVoteEnums.SUN) ||
+                        (inputVoteType == JVoteEnums.SUN && currentVoteType == JVoteEnums.CLEAR)) {
+                    isVotingForCurrentType = true;
+                }
+            } catch (IllegalArgumentException e) {
+                // continue with normal yes &  no check
+            }
+
+            if (isVotingForCurrentType) {
+                // They're voting for the same type as current vote, treat as "yes"
+                if (checkVote("yes", player)) {
+                    doVote();
+                    return true;
+                }
+            } else if ("yes".contains(arg) || "no".contains(arg) || "ok".contains(arg)) {
+                // Normal yes/no/ok voting
+                if (checkVote(args[0], player)) {
+                    // vote passed, perform change and reset values
+                    doVote();
+                    return true;
+                }
+            } else {
                 // invalid usage, return false
                 sender.sendMessage(JVoteUtils.printMessage("A vote is already in progress"));
                 plugin.logger(Level.WARNING, "Attempted /vote after vote started with improper args");
                 return true;
             }
-            if (checkVote(args[0], player)) {
-                // vote passed, perform change and reset values
-                doVote();
-                return true;
-            }
-
         }
+
         if (!voteStarted.get()) {
             try {
                 // this line to trigger exception if not valid
@@ -96,7 +121,7 @@ public class JVoteCommand implements CommandExecutor {
                         "A vote for "
                                 + JVoteUtils.formatColor(currentVoteType.color())
                                 + JVoteUtils.formatColor(currentVoteType.toString().toLowerCase())
-                                + JVoteUtils.formatColor("&7 has started. Vote by doing &a/vote <yes/no>"));
+                                + JVoteUtils.formatColor("&7 has started. Vote by doing &a/vote <yes/no/" + currentVoteType.toString().toLowerCase() + ">"));
                 plugin.getServer().broadcastMessage(msg);
                 if (checkVote("yes", player)) {
                     doVote();
