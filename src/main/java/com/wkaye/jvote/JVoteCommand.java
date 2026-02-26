@@ -1,5 +1,6 @@
 package com.wkaye.jvote;
 
+import com.johnymuffin.beta.fundamentals.FundamentalsPlayerMap;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.Command;
@@ -28,6 +29,8 @@ public class JVoteCommand implements CommandExecutor {
     HashSet<Player> playerHasVoted;
     JVoteEnums currentVoteType;
 
+    private final boolean fundamentalsPresent;
+
     public JVoteCommand(JVote plugin) {
         System.out.println("plugin instance created");
         this.plugin = plugin;
@@ -37,8 +40,9 @@ public class JVoteCommand implements CommandExecutor {
         playerHasVoted = new HashSet<>();
         isOnCooldown = new ConcurrentHashMap<>();
         countdownTaskId = new AtomicInteger();
-    }
 
+        fundamentalsPresent = Bukkit.getPluginManager().isPluginEnabled("Fundamentals");
+    }
 
     /*
      This command should have two stages: one where the voting commences and another where people vote yes/no
@@ -141,6 +145,20 @@ public class JVoteCommand implements CommandExecutor {
         return true;
     }
 
+    private int getEligiblePlayerCount() {
+        if (!fundamentalsPresent) {
+            return Bukkit.getServer().getOnlinePlayers().length;
+        }
+
+        int count = 0;
+        for (Player player : Bukkit.getServer().getOnlinePlayers()) {
+            if (!FundamentalsPlayerMap.getInstance().getPlayer(player).isAFK()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private boolean checkVote(String arg, CommandSender sender) {
         Player player = (Player) sender;
         double currentVotePercentage = 0;
@@ -152,12 +170,12 @@ public class JVoteCommand implements CommandExecutor {
         }
         sender.sendMessage(JVoteUtils.printMessage("You have voted"));
         playerHasVoted.add(player);
+        int eligible = getEligiblePlayerCount();
+        if (eligible == 0) return false;
         if ("yes".contains(arg.toLowerCase()) || "ok".contains(arg.toLowerCase())) {
-            currentVotePercentage = (double) totalVotes.incrementAndGet()
-                    / Bukkit.getServer().getOnlinePlayers().length;
+            currentVotePercentage = (double) totalVotes.incrementAndGet() / eligible;
         } else if ("no".contains(arg.toLowerCase())) {
-            currentVotePercentage = (double) totalVotes.decrementAndGet()
-                    / Bukkit.getServer().getOnlinePlayers().length;
+            currentVotePercentage = (double) totalVotes.decrementAndGet() / eligible;
         }
         if (plugin.getDebugLevel() > 0) {
             plugin.logger(Level.INFO, "voting percentage at: " + currentVotePercentage);
@@ -166,8 +184,9 @@ public class JVoteCommand implements CommandExecutor {
     }
 
     private boolean checkVote() {
-        double currentVotePercentage = (double) totalVotes.get()
-                / Bukkit.getServer().getOnlinePlayers().length;
+        int eligible = getEligiblePlayerCount();
+        if (eligible == 0) return false;
+        double currentVotePercentage = (double) totalVotes.get() / eligible;
         if (plugin.getDebugLevel() > 0) {
             plugin.logger(Level.INFO, "voting percentage at: " + currentVotePercentage);
         }
