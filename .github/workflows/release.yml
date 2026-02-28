@@ -96,9 +96,3 @@ jobs:
             artifacts/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
-
-      - name: Deploy to Nexus (retromc-private)
-        run: mvn -B -DskipTests deploy
-        env:
-          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
