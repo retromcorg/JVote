@@ -1,0 +1,104 @@
+name: Release Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 8
+
+      - name: Configure Maven settings.xml for Nexus
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml <<EOF
+          <settings>
+            <servers>
+              <server>
+                <id>johnymuffin-nexus-retromc</id>
+                <username>${{ secrets.NEXUS_USERNAME }}</username>
+                <password>${{ secrets.NEXUS_PASSWORD }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Get the version from pom.xml
+        id: get_version
+        run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+
+      - name: Fail if snapshot version
+        run: |
+          if [[ $PROJECT_VERSION == *"-SNAPSHOT"* ]]; then
+            echo "Snapshot versions are not releasable"
+            exit 0
+          fi
+
+      - name: Check if GitHub Release (tag) already exists
+        id: release_exists
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ env.PROJECT_VERSION }}
+        run: |
+          set +e
+          curl -sSf -H "Authorization: token ${GH_TOKEN}" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}" \
+            >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "EXISTS=true" >> $GITHUB_ENV
+            echo "Release ${TAG} already exists; skipping build/release/deploy."
+          else
+            echo "EXISTS=false" >> $GITHUB_ENV
+            echo "Release ${TAG} does not exist; proceeding."
+          fi
+          set -e
+
+      - name: Build with Maven
+        run: mvn clean package
+
+      # Collect JARs from all module target directories
+      - name: Collect module JARs
+        run: |
+          mkdir -p artifacts
+
+          # Find all JARs inside module target/ directories (e.g. core/target, retromc/target, etc.)
+          find . -mindepth 2 -maxdepth 4 -type f -path "*/target/*.jar" -exec cp {} artifacts/ \;
+
+          echo "JARs collected into artifacts/:"
+          ls -al artifacts || echo "No JARs found"
+
+      - name: Verify JARs exist
+        run: |
+          if ! ls artifacts/*.jar 1> /dev/null 2>&1; then
+            echo "No JAR files found in module target/ directories. Aborting release."
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        if: ${{ !endsWith(env.PROJECT_VERSION, '-SNAPSHOT') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.PROJECT_VERSION }}
+          files: |
+            artifacts/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+
+      - name: Deploy to Nexus (retromc-private)
+        run: mvn -B -DskipTests deploy
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
